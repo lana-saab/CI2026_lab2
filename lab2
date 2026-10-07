@@ -1,0 +1,67 @@
+from random import sample, seed, random, choice
+import matplotlib.pyplot as plt
+
+seed(42)
+
+def make_problem(n):
+    objects = frozenset(range(n))
+    sets = tuple(frozenset(sample(range(n), k=s + 1)) for s in range(n))
+    costs = tuple(10 * random() + (s + random()) ** 2 for s in range(n))
+    cost_of = {sets[i]: costs[i] for i in range(n)}
+    return objects, sets, cost_of
+
+def valid(solution, objects):
+    if not solution:
+        return False
+    return frozenset.union(*solution) == objects
+
+def fitness(solution, cost_of):
+    return -sum(cost_of[s] for s in solution)
+
+def tweak(solution, sets):
+    new_solution = set(solution)
+    for _ in range(1 if random() < 0.5 else 2):
+        s = choice(sets)
+        if s in new_solution:
+            new_solution.remove(s)
+        else:
+            new_solution.add(s)
+    return new_solution
+
+def hill_climb(objects, sets, cost_of, steps):
+    solution = set(sets)
+    best_fit = fitness(solution, cost_of)
+    for _ in range(steps):
+        new_solution = tweak(solution, sets)
+        if not valid(new_solution, objects):
+            continue
+        new_fit = fitness(new_solution, cost_of)
+        if new_fit > best_fit:
+            solution, best_fit = new_solution, new_fit
+    return solution, -best_fit
+
+def main():
+    results = []
+    for n in range(1, 101):
+        objects, sets, cost_of = make_problem(n)
+        solution, cost = hill_climb(objects, sets, cost_of, steps=20_000)
+        results.append((n, cost, len(solution)))
+        print(f"N={n}: cost = {cost:.2f}, selected sets = {len(solution)}")
+
+    ns = [r[0] for r in results]
+    costs = [r[1] for r in results]
+    counts = [r[2] for r in results]
+
+    fig, ax = plt.subplots(1, 2, figsize=(11, 4))
+    ax[0].plot(ns, costs); ax[0].set_xlabel("N"); ax[0].set_ylabel("cost"); ax[0].set_title("Final cost")
+    ax[1].plot(ns, counts); ax[1].set_xlabel("N"); ax[1].set_ylabel("selected sets"); ax[1].set_title("Number of selected sets")
+    fig.tight_layout()
+    fig.savefig("results.png", dpi=150)
+
+    with open("results.csv", "w") as f:
+        f.write("N,cost,selected_sets\n")
+        for n, c, k in results:
+            f.write(f"{n},{c:.4f},{k}\n")
+
+if __name__ == "__main__":
+    main()
